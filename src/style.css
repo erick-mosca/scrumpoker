@@ -244,21 +244,6 @@ input[type='text']:focus {
   flex-wrap: wrap;
 }
 
-.story-block {
-  margin-bottom: 1.5rem;
-}
-
-.story-readonly {
-  margin: 0;
-  padding: 1rem 1.15rem;
-  border-left: 3px solid var(--mint);
-  background: rgba(12, 42, 39, 0.45);
-  border-radius: 0 12px 12px 0;
-  font-size: 1.15rem;
-  font-family: var(--font-display);
-  font-weight: 500;
-}
-
 .board {
   margin-bottom: 1.75rem;
 }

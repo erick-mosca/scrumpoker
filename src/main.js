@@ -117,15 +117,6 @@ function bindRoom() {
     session?.resetVotes()
   })
 
-  const storyInput = app.querySelector('#story-input')
-  let storyTimer = null
-  storyInput?.addEventListener('input', () => {
-    clearTimeout(storyTimer)
-    storyTimer = setTimeout(() => {
-      session?.setStory(storyInput.value)
-    }, 200)
-  })
-
   app.querySelector('#btn-copy')?.addEventListener('click', async () => {
     const url = session?.getInviteUrl()
     if (!url) return

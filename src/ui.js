@@ -59,17 +59,6 @@ export function renderRoom(root, { state, myId, isHost, status, selectedVote }) 
         </div>
       </header>
 
-      <section class="story-block">
-        ${
-          isHost
-            ? `<label class="field">
-                <span>O que estamos estimando?</span>
-                <input id="story-input" type="text" maxlength="120" placeholder="Ex.: Login com SSO" value="${esc(state.story)}" />
-              </label>`
-            : `<p class="story-readonly">${state.story ? esc(state.story) : 'Aguardando o host definir a story…'}</p>`
-        }
-      </section>
-
       <section class="board" aria-live="polite">
         <div class="board-meta">
           <span>${votedCount}/${state.players.length} votaram</span>
