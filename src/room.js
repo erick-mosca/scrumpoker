@@ -166,17 +166,7 @@ export function createRoomSession({
     })
   }
 
-  function start() {
-    setStatus('Conectando…', 'info')
-
-    if (isHost) {
-      peer = new Peer(PEER_PREFIX + roomCode, {
-        debug: 0,
-      })
-    } else {
-      peer = new Peer({ debug: 0 })
-    }
-
+  function attachPeerHandlers(attempt = 0) {
     peer.on('open', (id) => {
       if (destroyed) return
       myId = id
@@ -220,7 +210,29 @@ export function createRoomSession({
     }
 
     peer.on('error', (err) => {
+      if (destroyed) return
       const msg = String(err?.type || err?.message || err)
+
+      // After refresh the old peer id can linger briefly on the signaling server.
+      if (
+        isHost &&
+        attempt < 6 &&
+        (msg.includes('unavailable-id') || msg.includes('ID is taken'))
+      ) {
+        setStatus('Reabrindo a sala…', 'info')
+        try {
+          peer.destroy()
+        } catch {
+          /* ignore */
+        }
+        window.setTimeout(() => {
+          if (destroyed) return
+          peer = new Peer(PEER_PREFIX + roomCode, { debug: 0 })
+          attachPeerHandlers(attempt + 1)
+        }, 700 + attempt * 300)
+        return
+      }
+
       if (msg.includes('unavailable-id') || msg.includes('ID is taken')) {
         onError?.('room-taken')
         setStatus('Esse código já está em uso. Crie outra sala.', 'error')
@@ -234,6 +246,18 @@ export function createRoomSession({
       setStatus(`Erro de conexão: ${msg}`, 'error')
       onError?.(msg)
     })
+  }
+
+  function start() {
+    setStatus('Conectando…', 'info')
+
+    if (isHost) {
+      peer = new Peer(PEER_PREFIX + roomCode, { debug: 0 })
+    } else {
+      peer = new Peer({ debug: 0 })
+    }
+
+    attachPeerHandlers(0)
   }
 
   function destroy() {

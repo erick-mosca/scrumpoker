@@ -4,6 +4,7 @@ import { createRoomSession } from './room.js'
 
 const app = document.querySelector('#app')
 const NAME_KEY = 'scrum-poker-name'
+const ROLE_KEY = 'scrum-poker-role'
 
 /** @type {'lobby' | 'room'} */
 let view = 'lobby'
@@ -14,6 +15,7 @@ let roomState = null
 /** @type {{ message: string, kind: string } | null} */
 let status = null
 let selectedVote = null
+let resuming = false
 
 function savedName() {
   return localStorage.getItem(NAME_KEY) || ''
@@ -21,8 +23,10 @@ function savedName() {
 
 function parseHash() {
   const hash = window.location.hash.replace(/^#/, '')
-  const join = hash.match(/^join\/([A-Za-z0-9]{3,8})$/)
+  const join = hash.match(/^join\/([A-Za-z0-9]{3,8})$/i)
   if (join) return { action: 'join', code: join[1].toUpperCase() }
+  const host = hash.match(/^room\/([A-Za-z0-9]{3,8})$/i)
+  if (host) return { action: 'host', code: host[1].toUpperCase() }
   return { action: null, code: '' }
 }
 
@@ -94,7 +98,11 @@ function bindLobby() {
     if (e.key === 'Enter') joinBtn?.click()
   })
   nameInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') createBtn?.click()
+    if (e.key === 'Enter') {
+      const code = String(codeInput?.value || '').trim()
+      if (code) joinBtn?.click()
+      else createBtn?.click()
+    }
   })
 }
 
@@ -138,6 +146,7 @@ function enterRoom({ mode, playerName, roomCode }) {
   selectedVote = null
   status = { message: 'Conectando…', kind: 'info' }
   view = 'room'
+  sessionStorage.setItem(ROLE_KEY, mode)
   roomState = {
     roomCode: roomCode || '····',
     story: '',
@@ -162,8 +171,15 @@ function enterRoom({ mode, playerName, roomCode }) {
       status = s
       paint()
     },
-    onError: () => {
-      /* status already set */
+    onError: (code) => {
+      if (code === 'room-missing' || code === 'room-taken' || code === 'connect-failed') {
+        session?.destroy()
+        session = null
+        roomState = null
+        view = 'lobby'
+        sessionStorage.removeItem(ROLE_KEY)
+        paint()
+      }
     },
   })
 
@@ -178,24 +194,46 @@ function leaveRoom() {
   selectedVote = null
   status = null
   view = 'lobby'
+  resuming = false
+  sessionStorage.removeItem(ROLE_KEY)
   window.location.hash = ''
   paint()
 }
 
+function tryResume() {
+  const boot = parseHash()
+  const name = savedName()
+  if (!boot.action || !boot.code) return false
+
+  if (!name) {
+    status = {
+      message: 'Digite seu nome para voltar à sala.',
+      kind: 'info',
+    }
+    return false
+  }
+
+  resuming = true
+  if (boot.action === 'host') {
+    enterRoom({ mode: 'host', playerName: name, roomCode: boot.code })
+    return true
+  }
+
+  enterRoom({ mode: 'guest', playerName: name, roomCode: boot.code })
+  return true
+}
+
 window.addEventListener('hashchange', () => {
-  if (view === 'lobby') paint()
+  if (view === 'lobby' && !resuming) paint()
 })
 
 window.addEventListener('beforeunload', () => {
   session?.destroy()
 })
 
-// Boot
-const boot = parseHash()
+// Boot — reenter room from URL when possible
 status = null
 view = 'lobby'
-paint()
-
-if (boot.action === 'join' && savedName()) {
-  // Prefill only; user clicks Entrar so Peer connects after gesture (more reliable on mobile)
+if (!tryResume()) {
+  paint()
 }
